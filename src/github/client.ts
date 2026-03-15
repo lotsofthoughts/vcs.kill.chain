@@ -96,6 +96,7 @@ export class GitHubClient {
         if (contentType.includes('application/json') && response.status !== 204) {
           data = await response.json() as T;
         } else {
+          await response.body?.cancel();
           data = undefined as unknown as T;
         }
 
