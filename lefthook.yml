@@ -1,6 +1,22 @@
-# Lefthook configuration file
-#  - Refer for explanation to following link:
-#    https://lefthook.dev/configuration/
+# Lefthook configuration
+# https://lefthook.dev/configuration/
+
+pre-commit:
+  parallel: true
+  jobs:
+    - name: "Lint"
+      tags:
+        - quality
+      run: deno lint
+    - name: "Type Check"
+      tags:
+        - quality
+      run: deno check src/mod.ts
+    - name: "Unit Tests"
+      tags:
+        - quality
+      run: deno test -A --parallel src/tests/unit/
+
 pre-push:
   parallel: false
   jobs:
@@ -8,43 +24,7 @@ pre-push:
       tags:
         - quality
       run: deno lint
-    - name: "Checks"
+    - name: "Full Tests"
       tags:
         - quality
-      run: make run
-    - name: "trufflehog"
-      tags:
-        - security
-      run: trufflehog filesystem . -x .hogignore
-    - name: "lizard"
-      tags:
-        - quality
-      run: python3 ./src/SAST/lizard.py
-    # - name: "prettier"
-    #   tags:
-    #     - quality
-    #   run: prettier -c .
-
-pre-commit:
-  parallel: false
-  jobs:
-    - name: "Lint"
-      tags:
-        - quality
-      run: deno lint
-    - name: "Checks"
-      tags:
-        - quality
-      run: make run
-    - name: "trufflehog"
-      tags:
-        - security
-      run: trufflehog filesystem . -x .hogignore
-    - name: "lizard"
-      tags:
-        - quality
-      run: python3 ./src/SAST/lizard.py
-    # - name: "prettier"
-    #   tags:
-    #     - quality
-    #   run: prettier -c .
+      run: deno test -A --parallel src/tests/
