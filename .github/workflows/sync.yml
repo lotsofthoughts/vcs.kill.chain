@@ -1,0 +1,90 @@
+name: Repository Sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      config_path:
+        description: "Path to vcs-agent YAML config"
+        required: true
+        default: "vcs-agent.yml"
+      dry_run:
+        description: "Dry run (plan only, no changes)"
+        required: false
+        type: boolean
+        default: false
+      verbose:
+        description: "Enable verbose output"
+        required: false
+        type: boolean
+        default: false
+  push:
+    branches: [main]
+    paths:
+      - "vcs-agent.yml"
+
+permissions:
+  id-token: write
+  contents: read
+
+env:
+  DENO_VERSION: "2.0.2"
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Deno
+        uses: denoland/setup-deno@v2.0.2
+        with:
+          deno-version: v2.x
+
+      - name: Validate Config
+        run: |
+          CONFIG_PATH="${{ github.event.inputs.config_path || 'vcs-agent.yml' }}"
+          deno run --allow-all ./src/mod.ts validate --config "$CONFIG_PATH"
+
+      - name: Azure OIDC Login
+        if: ${{ vars.AZURE_CLIENT_ID != '' }}
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Sync Repositories (Dry Run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.VCS_AGENT_TOKEN }}
+          CONJUR_API_KEY: ${{ secrets.CONJUR_API_KEY }}
+        run: |
+          CONFIG_PATH="${{ github.event.inputs.config_path || 'vcs-agent.yml' }}"
+          VERBOSE_FLAG=""
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="--verbose"
+          fi
+          deno run --allow-all ./src/mod.ts sync \
+            --config "$CONFIG_PATH" \
+            --dry-run \
+            $VERBOSE_FLAG
+
+      - name: Sync Repositories
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.VCS_AGENT_TOKEN }}
+          CONJUR_API_KEY: ${{ secrets.CONJUR_API_KEY }}
+        run: |
+          CONFIG_PATH="${{ github.event.inputs.config_path || 'vcs-agent.yml' }}"
+          VERBOSE_FLAG=""
+          if [ "${{ github.event.inputs.verbose }}" = "true" ]; then
+            VERBOSE_FLAG="--verbose"
+          fi
+          deno run --allow-all ./src/mod.ts sync \
+            --config "$CONFIG_PATH" \
+            $VERBOSE_FLAG

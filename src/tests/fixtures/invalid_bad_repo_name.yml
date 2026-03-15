@@ -1,0 +1,5 @@
+version: "1.0"
+repositories:
+  - name: "no-slash-repo"
+    settings:
+      description: "Missing owner/repo format"

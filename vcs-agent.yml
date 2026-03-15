@@ -1,0 +1,82 @@
+# vcs-agent configuration
+# This file defines the desired state for your GitHub repositories.
+# Run: deno run --allow-all ./src/mod.ts sync --config vcs-agent.yml
+# Or:  deno run --allow-all ./src/mod.ts plan --config vcs-agent.yml
+
+version: "1.0"
+
+settings:
+  conjur_api_key_env: CONJUR_API_KEY
+  github_token_env: GITHUB_TOKEN
+
+# Azure global configuration (optional)
+# azure:
+#   tenant_id: "your-tenant-id"
+#   subscription_id: "your-subscription-id"
+#   client_id: "your-client-id"
+
+repositories:
+  # ── Example repository configuration ─────────────────────────────
+  - name: "lotsofthoughts/vcs.kill.chain"
+
+    settings:
+      description: "VCS Agent - GitHub repository configuration management CLI"
+      private: false
+      has_issues: true
+      has_wiki: false
+      has_projects: false
+      allow_squash_merge: true
+      allow_merge_commit: true
+      allow_rebase_merge: false
+      delete_branch_on_merge: true
+      web_commit_signoff_required: false
+
+    rulesets:
+      - name: main-protection
+        target: branch
+        enforcement: active
+        conditions:
+          ref_name:
+            include:
+              - "refs/heads/main"
+        rules:
+          - type: pull_request
+            parameters:
+              required_approving_review_count: 1
+              dismiss_stale_reviews_on_push: true
+              require_code_owner_review: false
+          - type: required_status_checks
+            parameters:
+              strict_required_status_checks_policy: true
+              required_status_checks:
+                - context: "test"
+
+    security:
+      vulnerability_alerts: true
+      automated_security_fixes: true
+      secret_scanning: true
+      secret_scanning_push_protection: true
+
+    environments:
+      - name: production
+        wait_timer: 0
+        variables:
+          DEPLOY_TARGET: production
+        secrets:
+          CONJUR_API_KEY: "$CONJUR_API_KEY"
+
+    variables:
+      TEAM_NAME: platform-engineering
+
+    secrets:
+      CONJUR_API_KEY: "$CONJUR_API_KEY"
+
+    # Azure Key Vault (optional)
+    # azure_keyvault:
+    #   enabled: true
+    #   vault_name: "your-vault"
+    #   tenant_id: "your-tenant-id"
+    #   subscription_id: "your-subscription-id"
+    #   resource_group: "your-rg"
+    #   federated_identity:
+    #     subject: "repo:lotsofthoughts/vcs.kill.chain:ref:refs/heads/main"

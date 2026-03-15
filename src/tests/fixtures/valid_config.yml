@@ -1,0 +1,133 @@
+version: "1.0"
+
+settings:
+  conjur_api_key_env: CONJUR_API_KEY
+  github_token_env: GITHUB_TOKEN
+
+azure:
+  tenant_id: "00000000-0000-0000-0000-000000000001"
+  subscription_id: "00000000-0000-0000-0000-000000000002"
+  client_id: "00000000-0000-0000-0000-000000000003"
+
+repositories:
+  - name: "acme/webapp"
+    settings:
+      description: "Main web application"
+      private: true
+      has_issues: true
+      has_wiki: false
+      has_projects: false
+      allow_squash_merge: true
+      allow_merge_commit: false
+      allow_rebase_merge: false
+      delete_branch_on_merge: true
+      default_branch: main
+
+    rulesets:
+      - name: main-protection
+        target: branch
+        enforcement: active
+        conditions:
+          ref_name:
+            include:
+              - "refs/heads/main"
+        rules:
+          - type: pull_request
+            parameters:
+              required_approving_review_count: 2
+              dismiss_stale_reviews_on_push: true
+              require_code_owner_review: true
+          - type: required_status_checks
+            parameters:
+              strict_required_status_checks_policy: true
+              required_status_checks:
+                - context: "ci/test"
+                - context: "ci/lint"
+          - type: required_signatures
+
+      - name: release-tags
+        target: tag
+        enforcement: active
+        conditions:
+          ref_name:
+            include:
+              - "refs/tags/v*"
+        rules:
+          - type: creation
+          - type: deletion
+
+    collaborators:
+      - username: dev-lead
+        permission: admin
+      - username: contributor-1
+        permission: push
+      - username: security-reviewer
+        permission: triage
+
+    security:
+      vulnerability_alerts: true
+      automated_security_fixes: true
+      secret_scanning: true
+      secret_scanning_push_protection: true
+      code_scanning:
+        state: configured
+        query_suite: extended
+        languages:
+          - javascript
+          - typescript
+
+    environments:
+      - name: staging
+        wait_timer: 0
+        variables:
+          DEPLOY_ENV: staging
+          REGION: eastus2
+        secrets:
+          CONJUR_API_KEY: "$CONJUR_API_KEY"
+
+      - name: production
+        wait_timer: 30
+        prevent_self_review: true
+        reviewers:
+          - type: User
+            id: 12345
+        deployment_branch_policy:
+          protected_branches: true
+          custom_branch_policies: false
+        variables:
+          DEPLOY_ENV: production
+          REGION: eastus2
+        secrets:
+          CONJUR_API_KEY: "$CONJUR_API_KEY"
+
+    variables:
+      TEAM_NAME: platform-engineering
+      SERVICE_NAME: webapp
+      AZURE_SUBSCRIPTION_ID: "00000000-0000-0000-0000-000000000002"
+
+    secrets:
+      CONJUR_API_KEY: "$CONJUR_API_KEY"
+
+    azure_keyvault:
+      enabled: true
+      vault_name: acme-kv-prod
+      tenant_id: "00000000-0000-0000-0000-000000000001"
+      subscription_id: "00000000-0000-0000-0000-000000000002"
+      resource_group: rg-acme-prod
+      federated_identity:
+        subject: "repo:acme/webapp:ref:refs/heads/main"
+
+  - name: "acme/api-service"
+    settings:
+      description: "Backend API service"
+      private: true
+      has_issues: true
+      allow_squash_merge: true
+      delete_branch_on_merge: true
+
+    variables:
+      TEAM_NAME: platform-engineering
+      SERVICE_NAME: api-service
+
+    secrets:
+      CONJUR_API_KEY: "$CONJUR_API_KEY"

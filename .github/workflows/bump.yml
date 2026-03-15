@@ -1,11 +1,9 @@
 name: Version Bump & Tag
 
 on:
-  pull_request:
-    types: [opened, synchronize, reopened]
   push:
     branches:
-      - main # Versioning occurs on main
+      - main
 
 jobs:
   versioning:
@@ -17,7 +15,7 @@ jobs:
       - name: Checkout Code
         uses: actions/checkout@v4
         with:
-          fetch-depth: 0 # Ensure versioning works correctly
+          fetch-depth: 0
 
       - name: Determine Version Bump
         id: version_bump
@@ -26,22 +24,27 @@ jobs:
           tag_prefix: "v"
           major_pattern: "#major"
           minor_pattern: "#minor"
-          version_format: "${major}.${minor}.${patch}-buildno${increment}"
+          version_format: "${major}.${minor}.${patch}"
           bump_each_commit: true
-          change_path: "."
-          bump_each_commit_patch_pattern: "#patch"
-          namespace: "build"
+          change_path: "src"
+          bump_each_commit_patch_pattern: ""
 
       - name: Print Version Info
         run: |
           echo "New Version: ${{ steps.version_bump.outputs.version }}"
           echo "Release Tag: ${{ steps.version_bump.outputs.version_tag }}"
 
-      - name: Push Tag to Trigger Build Workflow
+      - name: Push Tag
         if: github.ref == 'refs/heads/main'
         run: |
           git config --global user.name "GitHub Actions"
           git config --global user.email "actions@github.com"
 
-          git tag ${{ steps.version_bump.outputs.release_tag }}
-          git push origin ${{ steps.version_bump.outputs.release_tag }}
+          TAG="${{ steps.version_bump.outputs.version_tag }}"
+          if ! git rev-parse "$TAG" >/dev/null 2>&1; then
+            git tag "$TAG"
+            git push origin "$TAG"
+            echo "Pushed tag: $TAG"
+          else
+            echo "Tag $TAG already exists, skipping"
+          fi

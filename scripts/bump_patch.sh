@@ -1,26 +1,15 @@
 #!/usr/bin/env bash
-pushd . && cd src
-  . .envrc
-popd
+set -euo pipefail
 
-# Get the last tag
-tag=$(git tag -l | tail -n 1)
+tag=$(git tag -l --sort=-v:refname | head -n 1)
 if [ -z "$tag" ]; then
-  tag="0.0.0"
+  tag="v0.0.0"
 fi
-echo "Last Tag: $tag"
+echo "Current Tag: $tag"
 
-# Generate build tag
-newtag=v$(./scripts/semver.sh bump patch $(git tag -l | tail -n 1))
+newtag="v$(./scripts/semver.sh bump patch "$tag")"
 echo "New Tag: $newtag"
-
-# Generate commit tag
-commit=$(git log | head -n 3)
-
-msg=$(echo "Last Commit: $commit")
-echo "$msg" > .semver.commit.tag
 echo "$newtag" > .semver.version.tag
 
-git tag -a $(cat .semver.version.tag) -m $(cat .semver.version.tag) 
-cat .semver.version.tag
-cat .semver.commit.tag
+echo "Tag calculated: $newtag"
+echo "Run 'make push-tag' to create and push this tag."
